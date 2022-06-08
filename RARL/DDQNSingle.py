@@ -276,7 +276,7 @@ class DDQNSingle(DDQN):
         figurePath = os.path.join(figureFolder, "initQ.png")
         plt.savefig(figurePath)
       if plotFigure:
-        plt.pause(0.001)
+        plt.pause(5) # 0.001
       plt.clf()
       plt.close('all')
     self.target_network.load_state_dict(
@@ -430,17 +430,19 @@ class DDQNSingle(DDQN):
                   self.Q_network, vmin=0, boolPlot=True, addBias=addBias
               )
             else:
-              env.visualize(
-                  self.Q_network, vmin=vmin, vmax=vmax, cmap="seismic",
-                  addBias=addBias
-              )
+              # env.visualize(
+              #     self.Q_network, vmin=vmin, vmax=vmax, cmap="seismic",
+              #     addBias=addBias
+              # )
+              pass
             if storeFigure:
+              print(f'cntUpdate type is {type(self.cntUpdate)}')
               figurePath = os.path.join(
                   figureFolder, "{:d}.png".format(self.cntUpdate)
               )
               plt.savefig(figurePath)
             if plotFigure:
-              plt.pause(0.001)
+              plt.pause(5) #0.001
             plt.clf()
             plt.close('all')
 
