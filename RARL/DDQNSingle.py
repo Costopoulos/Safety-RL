@@ -276,9 +276,9 @@ class DDQNSingle(DDQN):
         figurePath = os.path.join(figureFolder, "initQ.png")
         plt.savefig(figurePath)
       if plotFigure:
-        plt.pause(0.001)
-      plt.clf()
-      plt.close('all')
+        plt.pause(10) #0.001
+      # plt.clf()
+      # plt.close('all')
     self.target_network.load_state_dict(
         self.Q_network.state_dict()
     )  # hard replace
@@ -440,9 +440,9 @@ class DDQNSingle(DDQN):
               )
               plt.savefig(figurePath)
             if plotFigure:
-              plt.pause(0.001)
-            plt.clf()
-            plt.close('all')
+              plt.pause(10) #0.001
+            # plt.clf()
+            # plt.close('all')
 
         # Perform one step of the optimization (on the target network)
         lossC = self.update(addBias=addBias)
