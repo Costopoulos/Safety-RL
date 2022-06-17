@@ -88,7 +88,7 @@ class OnePlayerReachAvoidLunarLander(MultiPlayerLunarLanderReachability):
     self.slices_y = np.array([1, 0, -1]) * self.scaling_factor
     self.slices_x = np.array([-1, 0, 1]) * self.scaling_factor
     self.slices_theta = np.array([-15, -10, 0, 10, 15])
-    self.slices_theta_dot = np.array([[-1, 0, 1]]) * self.scaling_factor
+    self.slices_theta_dot = np.array([-1, 0, 1]) * self.scaling_factor
     self.vis_init_flag = True
     self.visual_initial_states = [
         np.array([
