@@ -114,6 +114,10 @@ parser.add_argument("-dbl", "--double", help="double DQN", action="store_true")
 parser.add_argument(
     "-bs", "--batchsize", help="batch size", default=100, type=int
 )
+# Calculate whole 6D
+parser.add_argument(
+    "-sixd", "--sixdsystem", help="6D system", default=False, type=bool
+)
 
 # RL type
 parser.add_argument("-m", "--mode", help="mode", default='RA', type=str)
@@ -167,7 +171,7 @@ CONFIG = dqnConfig(
     LR_C_DECAY=0.8,  # Learning rate decay rate.
     # =================== LEARNING RATE .
     GAMMA=args.gamma,  # Inital gamma.
-    GAMMA_END=0.999,  # Final gamma.
+    GAMMA_END=0.999999,#0.999,  # Final gamma.
     GAMMA_PERIOD=args.update_period_gamma,  # How often to update gamma.
     GAMMA_DECAY=0.1,  # Rate of decay of gamma.
     # ===================
@@ -239,6 +243,7 @@ def run_experiment(args, CONFIG, env):
       vmax=1,
       checkPeriod=args.checkPeriod,  # How often to compute Safe vs. Unsafe.
       storeFigure=args.storeFigure,  # Store the figure in an eps file.
+      sixD = args.sixdsystem,
       storeModel=True,
       storeBest=False,
       outFolder=outFolder,

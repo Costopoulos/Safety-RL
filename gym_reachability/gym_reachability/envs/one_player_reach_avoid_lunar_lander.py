@@ -87,6 +87,8 @@ class OnePlayerReachAvoidLunarLander(MultiPlayerLunarLanderReachability):
     self.scaling_factor = 3.0
     self.slices_y = np.array([1, 0, -1]) * self.scaling_factor
     self.slices_x = np.array([-1, 0, 1]) * self.scaling_factor
+    self.slices_theta = np.array([-15, -10, 0, 10, 15])
+    self.slices_theta_dot = np.array([[-1, 0, 1]]) * self.scaling_factor
     self.vis_init_flag = True
     self.visual_initial_states = [
         np.array([
@@ -450,7 +452,7 @@ class OnePlayerReachAvoidLunarLander(MultiPlayerLunarLanderReachability):
   def visualize(
       self, q_func, vmin=-50, vmax=50, nx=91, ny=91, labels=['', ''],
       boolPlot=False, cmap='seismic', addBias=False, trueRAZero=False,
-      lvlset=0.
+      lvlset=0, sixD=False
   ):
     """
     Visulaizes the trained Q-network in terms of state values and trajectories
@@ -480,89 +482,177 @@ class OnePlayerReachAvoidLunarLander(MultiPlayerLunarLanderReachability):
       self.fig, self.axes = plt.subplots(
           numX, numY, figsize=(2 * numY, 2 * numX), sharex=True, sharey=True
       )
-    for y_jj, y_dot in enumerate(self.slices_y):
-      for x_ii, x_dot in enumerate(self.slices_x):
-        ax = self.axes[y_jj][x_ii]
-        ax.cla()
-        v, xs, ys = self.get_value(
-            q_func, nx, ny, x_dot=x_dot, y_dot=y_dot, theta=0, theta_dot=0,
-            addBias=addBias
-        )
+    if not sixD:
+      for y_jj, y_dot in enumerate(self.slices_y):
+        for x_ii, x_dot in enumerate(self.slices_x):
+          ax = self.axes[y_jj][x_ii]
+          ax.cla()
+          v, xs, ys = self.get_value(
+              q_func, nx, ny, x_dot=x_dot, y_dot=y_dot, theta=0, theta_dot=0,
+              addBias=addBias
+          )
 
-        # == Plot Value Function ==
-        if boolPlot:
-          if trueRAZero:
-            nx1 = nx
-            ny1 = ny
-            resultMtx = np.empty((nx1, ny1), dtype=int)
-            xs = np.linspace(
-                self.bounds_simulation[0, 0], self.bounds_simulation[0, 1], nx1
-            )
-            ys = np.linspace(
-                self.bounds_simulation[1, 0], self.bounds_simulation[1, 1], ny1
-            )
-
-            it = np.nditer(resultMtx, flags=['multi_index'])
-            while not it.finished:
-              idx = it.multi_index
-              x = xs[idx[0]]
-              y = ys[idx[1]]
-
-              state = np.array([x, y, x_dot, y_dot, 0, 0])
-              (traj_x, traj_y, result) = \
-                  self.simulate_one_trajectory(
-                      q_func, T=400, state=state
+          # == Plot Value Function ==
+          if boolPlot:
+            if trueRAZero:
+              nx1 = nx
+              ny1 = ny
+              resultMtx = np.empty((nx1, ny1), dtype=int)
+              xs = np.linspace(
+                  self.bounds_simulation[0, 0], self.bounds_simulation[0, 1], nx1
+              )
+              ys = np.linspace(
+                  self.bounds_simulation[1, 0], self.bounds_simulation[1, 1], ny1
               )
 
-              resultMtx[idx] = result
-              it.iternext()
-            ax.imshow(
-                resultMtx.T != 1, interpolation='none', extent=axStyle[0],
-                origin="lower", cmap=cmap
+              it = np.nditer(resultMtx, flags=['multi_index'])
+              while not it.finished:
+                idx = it.multi_index
+                x = xs[idx[0]]
+                y = ys[idx[1]]
+
+                state = np.array([x, y, x_dot, y_dot, 0, 0])
+                (traj_x, traj_y, result) = \
+                    self.simulate_one_trajectory(
+                        q_func, T=400, state=state
+                )
+
+                resultMtx[idx] = result
+                it.iternext()
+              ax.imshow(
+                  resultMtx.T != 1, interpolation='none', extent=axStyle[0],
+                  origin="lower", cmap=cmap
+              )
+            else:
+              ax.imshow(
+                  v.T > lvlset, interpolation='none', extent=axStyle[0],
+                  origin="lower", cmap=cmap
+              )
+            X, Y = np.meshgrid(xs, ys)
+            ax.contour(
+                X, Y, v.T, levels=[-0.1], colors=('k',), linestyles=('--',),
+                linewidths=(1,)
             )
           else:
+            vmin = np.min(v)
+            vmax = np.max(v)
+            vstar = max(abs(vmin), vmax)
             ax.imshow(
-                v.T > lvlset, interpolation='none', extent=axStyle[0],
-                origin="lower", cmap=cmap
+                v.T, interpolation='none', extent=axStyle[0], origin="lower",
+                cmap=cmap, vmin=-vstar, vmax=vstar
             )
-          X, Y = np.meshgrid(xs, ys)
-          ax.contour(
-              X, Y, v.T, levels=[-0.1], colors=('k',), linestyles=('--',),
-              linewidths=(1,)
-          )
-        else:
-          vmin = np.min(v)
-          vmax = np.max(v)
-          vstar = max(abs(vmin), vmax)
-          ax.imshow(
-              v.T, interpolation='none', extent=axStyle[0], origin="lower",
-              cmap=cmap, vmin=-vstar, vmax=vstar
-          )
-          X, Y = np.meshgrid(xs, ys)
-          ax.contour(
-              X, Y, v.T, levels=[-0.1], colors=('k',), linestyles=('--',),
-              linewidths=(1,)
-          )
+            X, Y = np.meshgrid(xs, ys)
+            ax.contour( # draws lines at the bounds of the computed space
+                X, Y, v.T, levels=[-0.1], colors=('k',), linestyles=('--',),
+                linewidths=(1,)
+            )
 
-        #  == Plot Environment ==
-        self.imshow_lander(extent=axStyle[0], alpha=0.4, ax=ax)
+          #  == Plot Environment ==
+          self.imshow_lander(extent=axStyle[0], alpha=0.4, ax=ax)
 
-        ax.axis(axStyle[0])
-        ax.grid(False)
-        ax.set_aspect(axStyle[1])  # makes equal aspect ratio
-        if labels is not None:
-          ax.set_xlabel(labels[0], fontsize=52)
-          ax.set_ylabel(labels[1], fontsize=52)
+          ax.axis(axStyle[0])
+          ax.grid(False)
+          ax.set_aspect(axStyle[1])  # makes equal aspect ratio
+          if labels is not None:
+            ax.set_xlabel(labels[0], fontsize=52)
+            ax.set_ylabel(labels[1], fontsize=52)
 
-        ax.tick_params(
-            axis='both', which='both', bottom=False, top=False, left=False,
-            right=False
-        )
-        ax.set_xticklabels([])
-        ax.set_yticklabels([])
-        if trueRAZero:
-          return
-    plt.tight_layout()
+          ax.tick_params(
+              axis='both', which='both', bottom=False, top=False, left=False,
+              right=False
+          )
+          ax.set_xticklabels([])
+          ax.set_yticklabels([])
+          if trueRAZero:
+            return
+      plt.tight_layout()
+
+    else:
+      for y_jj, y_dot in enumerate(self.slices_y):
+        for x_ii, x_dot in enumerate(self.slices_x):
+          ax = self.axes[y_jj][x_ii]
+          ax.cla()
+          for _, theta_info in enumerate(self.slices_theta):
+            for _, theta_dot_info in enumerate(self.slices_theta_dot):
+              v, xs, ys = self.get_value(
+                  q_func, nx, ny, x_dot=x_dot, y_dot=y_dot, theta=theta_info, theta_dot=theta_dot_info,
+                  addBias=addBias
+              )
+
+              # == Plot Value Function ==
+              if boolPlot:
+                if trueRAZero:
+                  nx1 = nx
+                  ny1 = ny
+                  resultMtx = np.empty((nx1, ny1), dtype=int)
+                  xs = np.linspace(
+                      self.bounds_simulation[0, 0], self.bounds_simulation[0, 1], nx1
+                  )
+                  ys = np.linspace(
+                      self.bounds_simulation[1, 0], self.bounds_simulation[1, 1], ny1
+                  )
+
+                  it = np.nditer(resultMtx, flags=['multi_index'])
+                  while not it.finished:
+                    idx = it.multi_index
+                    x = xs[idx[0]]
+                    y = ys[idx[1]]
+
+                    state = np.array([x, y, x_dot, y_dot, theta, thetadot])
+                    (traj_x, traj_y, result) = \
+                        self.simulate_one_trajectory(
+                            q_func, T=400, state=state
+                    )
+
+                    resultMtx[idx] = result
+                    it.iternext()
+                  ax.imshow(
+                      resultMtx.T != 1, interpolation='none', extent=axStyle[0],
+                      origin="lower", cmap=cmap
+                  )
+                else:
+                  ax.imshow(
+                      v.T > lvlset, interpolation='none', extent=axStyle[0],
+                      origin="lower", cmap=cmap
+                  )
+                X, Y = np.meshgrid(xs, ys)
+                ax.contour(
+                    X, Y, v.T, levels=[-0.1], colors=('k',), linestyles=('--',),
+                    linewidths=(1,)
+                )
+              else:
+                vmin = np.min(v)
+                vmax = np.max(v)
+                vstar = max(abs(vmin), vmax)
+                ax.imshow(
+                    v.T, interpolation='none', extent=axStyle[0], origin="lower",
+                    cmap=cmap, vmin=-vstar, vmax=vstar
+                )
+                X, Y = np.meshgrid(xs, ys)
+                ax.contour( # draws lines at the bounds of the computed space
+                    X, Y, v.T, levels=[-0.1], colors=('k',), linestyles=('--',),
+                    linewidths=(1,)
+                )
+
+              #  == Plot Environment ==
+              self.imshow_lander(extent=axStyle[0], alpha=0.4, ax=ax)
+
+              ax.axis(axStyle[0])
+              ax.grid(False)
+              ax.set_aspect(axStyle[1])  # makes equal aspect ratio
+              if labels is not None:
+                ax.set_xlabel(labels[0], fontsize=52)
+                ax.set_ylabel(labels[1], fontsize=52)
+
+              ax.tick_params(
+                  axis='both', which='both', bottom=False, top=False, left=False,
+                  right=False
+              )
+              ax.set_xticklabels([])
+              ax.set_yticklabels([])
+              if trueRAZero:
+                return
+      plt.tight_layout()
 
   def get_warmup_examples(self, num_warmup_samples=100, s_margin=True):
     """Gets warmup samples to initialize the Q-network.

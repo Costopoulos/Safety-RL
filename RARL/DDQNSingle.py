@@ -290,7 +290,7 @@ class DDQNSingle(DDQN):
       self, env, MAX_UPDATES=2000000, MAX_EP_STEPS=100, warmupBuffer=True,
       warmupQ=False, warmupIter=10000, addBias=False, doneTerminate=True,
       runningCostThr=None, curUpdates=None, checkPeriod=50000, plotFigure=True,
-      storeFigure=False, showBool=False, vmin=-1, vmax=1, numRndTraj=200,
+      storeFigure=False, sixD=False, showBool=False, vmin=-1, vmax=1, numRndTraj=200,
       storeModel=True, storeBest=False, outFolder="RA", verbose=True
   ):
     """Learns the Q function given the training hyper-parameters.
@@ -427,12 +427,12 @@ class DDQNSingle(DDQN):
             # self.Q_network.eval()
             if showBool:
               env.visualize(
-                  self.Q_network, vmin=0, boolPlot=True, addBias=addBias
+                  self.Q_network, vmin=0, boolPlot=True, addBias=addBias, sixD=sixD
               )
             else:
               env.visualize(
                   self.Q_network, vmin=vmin, vmax=vmax, cmap="seismic",
-                  addBias=addBias
+                  addBias=addBias, sixD=sixD
               )
             if storeFigure:
               figurePath = os.path.join(
