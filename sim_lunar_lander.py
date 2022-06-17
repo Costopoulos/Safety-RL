@@ -116,7 +116,7 @@ parser.add_argument(
 )
 # Calculate whole 6D
 parser.add_argument(
-    "-sixd", "--sixdsystem", help="6D system", default=False, type=bool
+    "-sixd", "--sixdsystem", help="6D system", action="store_true"
 )
 
 # RL type
