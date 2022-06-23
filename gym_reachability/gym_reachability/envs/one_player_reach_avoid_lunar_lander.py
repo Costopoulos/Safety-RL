@@ -471,9 +471,13 @@ class OnePlayerReachAvoidLunarLander(MultiPlayerLunarLanderReachability):
       for x_ii, x_dot in enumerate(self.slices_x):
         ax = self.axes[y_jj][x_ii]
         ax.cla()
-        v, xs, ys = self.get_value(
-            q_func, nx, ny, x_dot=x_dot, y_dot=y_dot, theta=0, theta_dot=0,
+        v1, xs1, ys1 = self.get_value(
+            q_func, nx, ny, x_dot=x_dot, y_dot=0, theta=0, theta_dot=0,
             addBias=addBias
+        ) # try with get_value_x()
+        v2, xs2, ys2 = self.get_value(
+          q_func, nx, ny, x_dot=0, y_dot=y_dot, theta=0, theta_dot=0,
+          addBias=addBias
         )
 
         # == Plot Value Function ==
@@ -518,17 +522,38 @@ class OnePlayerReachAvoidLunarLander(MultiPlayerLunarLanderReachability):
               linewidths=(1,)
           )
         else:
-          vmin = np.min(v)
-          vmax = np.max(v)
-          vstar = max(abs(vmin), vmax)
+          vmin1 = np.min(v1)
+          vmax1 = np.max(v1)
+          vstar1 = max(abs(vmin1), vmax1)
+          vmin2 = np.min(v2)
+          vmax2 = np.max(v2)
+          vstar2 = max(abs(vmin2), vmax2)
+
+          # vstar = max(vstar1, vstar2)
+          vstar = min(vstar1, vstar2)
           ax.imshow(
-              v.T, interpolation='none', extent=axStyle[0], origin="lower",
+              v1.T, interpolation='none', extent=axStyle[0], origin="lower",
               cmap=cmap, vmin=-vstar, vmax=vstar
           )
-          X, Y = np.meshgrid(xs, ys)
+          ax.imshow(
+            v2.T, interpolation='none', extent=axStyle[0], origin="lower",
+            cmap=cmap, vmin=-vstar, vmax=vstar
+          )
+          X1, Y1 = np.meshgrid(xs1, ys1)
+          X2, Y2 = np.meshgrid(xs2, ys2)
           ax.contour(
-              X, Y, v.T, levels=[-0.1], colors=('k',), linestyles=('--',),
+              X1, Y1, v1.T, levels=[-0.1], colors=('k',), linestyles=('--',),
               linewidths=(1,)
+          )
+          ax.contour(
+            X2, Y2, v2.T, levels=[-0.1], colors=('c',), linestyles=('--',),
+            linewidths=(1,)
+          )
+          # vmin = np.minimum(v1, v2)
+          voptimal = np.maximum(v1, v2)
+          ax.contour(
+            X1, Y1, voptimal.T, levels=[-0.1], colors=('m',), linestyles=('--',),
+            linewidths=(1,)
           )
 
         #  == Plot Environment ==
