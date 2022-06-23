@@ -327,6 +327,130 @@ class OnePlayerReachAvoidLunarLander(MultiPlayerLunarLanderReachability):
 
     return results
 
+  def get_value_x(
+      self, q_func, nx=101, ny=101, x_dot=0., y_dot=0., theta=0., theta_dot=0.,
+      addBias=False
+  ):
+    """Gets the state values of the x,xdot,theta,thetadot subsystem given the Q-network.
+
+    Args:
+        q_func (object): agent's Q-network.
+        theta (float): the heading angle of the car.
+        nx (int, optional): # points in x-axis. Defaults to 101.
+        ny (int, optional): # points in y-axis. Defaults to 101.
+        x_dot (float, optional): the velocity at x direction. Defaults to 0.
+        y_dot (float, optional): the velocity at y direction. Defaults to 0.
+        theta (float, optional): the yaw of the agent. Defaults to 0.
+        theta_dot (float, optional): the angular velocity. Defaults to 0.
+        addBias (bool, optional): adding bias to the values or not.
+            Defaults to False.
+
+    Returns:
+        np.ndarray: values
+    """
+    v = np.zeros((nx, ny))
+    it = np.nditer(v, flags=['multi_index'])
+    xs = np.linspace(
+        self.bounds_observation[0, 0], self.bounds_observation[0, 1], nx
+    )
+    # Convert slice simulation variables to observation scale.
+    (_, _, x_dot, y_dot, theta, theta_dot) = \
+        self.simulator_scale_to_obs_scale(
+            np.array([0, 0, x_dot, 0, theta, theta_dot])
+    )
+    # print("Start value collection on grid...")
+    while not it.finished:
+      idx = it.multi_index
+
+      x = xs[idx[0]]
+      l_x = self.target_margin(
+          self.obs_scale_to_simulator_scale(
+              np.array([x, 0, x_dot, 0, theta, theta_dot])
+          )
+      )
+      g_x = self.safety_margin(
+          self.obs_scale_to_simulator_scale(
+              np.array([x, 0, x_dot, 0, theta, theta_dot])
+          )
+      )
+
+      if self.mode == 'normal' or self.mode == 'RA':
+        state = torch.FloatTensor([x, 0, x_dot, 0, theta, theta_dot]).to(self.device).unsqueeze(0)
+      else:
+        z = max([l_x, g_x])
+        state = torch.FloatTensor([x, 0, x_dot, 0, theta, theta_dot,
+                                   z]).to(self.device).unsqueeze(0)
+      if addBias:
+        v[idx] = q_func(state).min(dim=1)[0].item() + max(l_x, g_x)
+      else:
+        v[idx] = q_func(state).min(dim=1)[0].item()
+      # v[idx] = max(g_x, min(l_x, v[idx]))
+      it.iternext()
+    # print("End value collection on grid.")
+    return v, xs
+
+  def get_value_y(
+      self, q_func, nx=101, ny=101, x_dot=0., y_dot=0., theta=0., theta_dot=0.,
+      addBias=False
+  ):
+    """Gets the state values of the y,ydot,theta,thetadot subsystem given the Q-network.
+
+    Args:
+        q_func (object): agent's Q-network.
+        theta (float): the heading angle of the car.
+        nx (int, optional): # points in x-axis. Defaults to 101.
+        ny (int, optional): # points in y-axis. Defaults to 101.
+        x_dot (float, optional): the velocity at x direction. Defaults to 0.
+        y_dot (float, optional): the velocity at y direction. Defaults to 0.
+        theta (float, optional): the yaw of the agent. Defaults to 0.
+        theta_dot (float, optional): the angular velocity. Defaults to 0.
+        addBias (bool, optional): adding bias to the values or not.
+            Defaults to False.
+
+    Returns:
+        np.ndarray: values
+    """
+    v = np.zeros((nx, ny))
+    it = np.nditer(v, flags=['multi_index'])
+    ys = np.linspace(
+        self.bounds_observation[1, 0], self.bounds_observation[1, 1], ny
+    )
+    # Convert slice simulation variables to observation scale.
+    (_, _, x_dot, y_dot, theta, theta_dot) = \
+        self.simulator_scale_to_obs_scale(
+            np.array([0, 0, 0, y_dot, theta, theta_dot])
+    )
+    # print("Start value collection on grid...")
+    while not it.finished:
+      idx = it.multi_index
+
+      y = ys[idx[1]]
+      l_x = self.target_margin(
+          self.obs_scale_to_simulator_scale(
+              np.array([0, y, 0, y_dot, theta, theta_dot])
+          )
+      )
+      g_x = self.safety_margin(
+          self.obs_scale_to_simulator_scale(
+              np.array([0, y, 0, y_dot, theta, theta_dot])
+          )
+      )
+
+      if self.mode == 'normal' or self.mode == 'RA':
+        state = torch.FloatTensor([0, y, 0, y_dot, theta, theta_dot]).to(self.device).unsqueeze(0)
+      else:
+        z = max([l_x, g_x])
+        state = torch.FloatTensor([0, y, 0, y_dot, theta, theta_dot,
+                                   z]).to(self.device).unsqueeze(0)
+      if addBias:
+        v[idx] = q_func(state).min(dim=1)[0].item() + max(l_x, g_x)
+      else:
+        v[idx] = q_func(state).min(dim=1)[0].item()
+      # v[idx] = max(g_x, min(l_x, v[idx]))
+      it.iternext()
+    # print("End value collection on grid.")
+    return v, ys
+
   def get_value(
       self, q_func, nx=101, ny=101, x_dot=0., y_dot=0., theta=0., theta_dot=0.,
       addBias=False
@@ -471,14 +595,8 @@ class OnePlayerReachAvoidLunarLander(MultiPlayerLunarLanderReachability):
       for x_ii, x_dot in enumerate(self.slices_x):
         ax = self.axes[y_jj][x_ii]
         ax.cla()
-        v1, xs1, ys1 = self.get_value(
-            q_func, nx, ny, x_dot=x_dot, y_dot=0, theta=0, theta_dot=0,
-            addBias=addBias
-        ) # try with get_value_x()
-        v2, xs2, ys2 = self.get_value(
-          q_func, nx, ny, x_dot=0, y_dot=y_dot, theta=0, theta_dot=0,
-          addBias=addBias
-        )
+        v1, xs = self.get_value_x(q_func, nx, ny, x_dot=x_dot, y_dot=0, theta=0, theta_dot=0, addBias=addBias)
+        v2, ys = self.get_value_y(q_func, nx, ny, x_dot=0, y_dot=y_dot, theta=0, theta_dot=0, addBias=addBias)
 
         # == Plot Value Function ==
         if boolPlot:
@@ -529,7 +647,6 @@ class OnePlayerReachAvoidLunarLander(MultiPlayerLunarLanderReachability):
           vmax2 = np.max(v2)
           vstar2 = max(abs(vmin2), vmax2)
 
-          # vstar = max(vstar1, vstar2)
           vstar = min(vstar1, vstar2)
           ax.imshow(
               v1.T, interpolation='none', extent=axStyle[0], origin="lower",
@@ -539,20 +656,19 @@ class OnePlayerReachAvoidLunarLander(MultiPlayerLunarLanderReachability):
             v2.T, interpolation='none', extent=axStyle[0], origin="lower",
             cmap=cmap, vmin=-vstar, vmax=vstar
           )
-          X1, Y1 = np.meshgrid(xs1, ys1)
-          X2, Y2 = np.meshgrid(xs2, ys2)
+
+          X, Y = np.meshgrid(xs, ys)
           ax.contour(
-              X1, Y1, v1.T, levels=[-0.1], colors=('k',), linestyles=('--',),
+              X, Y, v1.T, levels=[-0.1], colors=('k',), linestyles=('--',),
               linewidths=(1,)
           )
           ax.contour(
-            X2, Y2, v2.T, levels=[-0.1], colors=('c',), linestyles=('--',),
+            X, Y, v2.T, levels=[-0.1], colors=('c',), linestyles=('--',),
             linewidths=(1,)
           )
-          # vmin = np.minimum(v1, v2)
           voptimal = np.maximum(v1, v2)
           ax.contour(
-            X1, Y1, voptimal.T, levels=[-0.1], colors=('m',), linestyles=('--',),
+            X, Y, voptimal.T, levels=[-0.1], colors=('m',), linestyles=('--',),
             linewidths=(1,)
           )
 
