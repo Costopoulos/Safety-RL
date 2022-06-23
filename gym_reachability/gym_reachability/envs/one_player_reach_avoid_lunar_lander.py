@@ -82,19 +82,6 @@ class OnePlayerReachAvoidLunarLander(MultiPlayerLunarLanderReachability):
     self.hover_min_y = self.HELIPAD_Y  # calc of edges of landing pad based
     self.hover_max_y = self.HELIPAD_Y + 2  # on calc in parent reset()
 
-    # Visualization params
-    self.img_data = None
-    self.scaling_factor = 3.0
-    self.slices_y = np.array([1, 0, -1]) * self.scaling_factor
-    self.slices_x = np.array([-1, 0, 1]) * self.scaling_factor
-    self.vis_init_flag = True
-    self.visual_initial_states = [
-        np.array([
-            self.midpoint_x + self.width_x / 4,
-            self.midpoint_y + self.width_y / 4, 0, 0, 0, 0
-        ])
-    ]
-
     self.polygon_target = [(self.helipad_x1, self.HELIPAD_Y),
                            (self.helipad_x2, self.HELIPAD_Y),
                            (self.helipad_x2, self.HELIPAD_Y + 2),
