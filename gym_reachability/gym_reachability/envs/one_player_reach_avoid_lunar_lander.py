@@ -560,8 +560,8 @@ class OnePlayerReachAvoidLunarLander(MultiPlayerLunarLanderReachability):
 
   def visualize(
       self, q_func, vmin=-50, vmax=50, nx=91, ny=91, labels=['', ''],
-      boolPlot=False, cmap='seismic', addBias=False, trueRAZero=False,
-      lvlset=0.
+      boolPlot=False, cmap='seismic', addBias=False, decompose=False,
+      trueRAZero=False, lvlset=0.
   ):
     """
     Visulaizes the trained Q-network in terms of state values and trajectories
@@ -579,6 +579,7 @@ class OnePlayerReachAvoidLunarLander(MultiPlayerLunarLanderReachability):
         cmap (str, optional): color map. Defaults to 'seismic'.
         addBias (bool, optional): adding bias to the values or not.
             Defaults to False.
+        decompose (bool, optional): decompose the state if True.
         trueRAZero (bool, optional): For bool plot, use the rollout outcome if
             True. If False, use the levelset instead. Defaults to False.
         lvlset (float, optional): The levelset threshold for plotting the
@@ -595,9 +596,15 @@ class OnePlayerReachAvoidLunarLander(MultiPlayerLunarLanderReachability):
       for x_ii, x_dot in enumerate(self.slices_x):
         ax = self.axes[y_jj][x_ii]
         ax.cla()
-        v1, xs = self.get_value_x(q_func, nx, ny, x_dot=x_dot, y_dot=0, theta=0, theta_dot=0, addBias=addBias)
-        v2, ys = self.get_value_y(q_func, nx, ny, x_dot=0, y_dot=y_dot, theta=0, theta_dot=0, addBias=addBias)
-
+        v, v1, v2, xs, ys = 0, 0, 0, 0, 0
+        if decompose:
+          v1, xs = self.get_value_x(q_func, nx, ny, x_dot=x_dot, y_dot=0, theta=0, theta_dot=0, addBias=addBias)
+          v2, ys = self.get_value_y(q_func, nx, ny, x_dot=0, y_dot=y_dot, theta=0, theta_dot=0, addBias=addBias)
+        else:
+          v, xs, ys = self.get_value(
+            q_func, nx, ny, x_dot=x_dot, y_dot=y_dot, theta=0, theta_dot=0,
+            addBias=addBias
+          )
         # == Plot Value Function ==
         if boolPlot:
           if trueRAZero:
@@ -640,37 +647,51 @@ class OnePlayerReachAvoidLunarLander(MultiPlayerLunarLanderReachability):
               linewidths=(1,)
           )
         else:
-          vmin1 = np.min(v1)
-          vmax1 = np.max(v1)
-          vstar1 = max(abs(vmin1), vmax1)
-          vmin2 = np.min(v2)
-          vmax2 = np.max(v2)
-          vstar2 = max(abs(vmin2), vmax2)
+          if decompose:
+            vmin1 = np.min(v1)
+            vmax1 = np.max(v1)
+            vstar1 = max(abs(vmin1), vmax1)
+            vmin2 = np.min(v2)
+            vmax2 = np.max(v2)
+            vstar2 = max(abs(vmin2), vmax2)
 
-          vstar = min(vstar1, vstar2)
-          ax.imshow(
-              v1.T, interpolation='none', extent=axStyle[0], origin="lower",
+            vstar = min(vstar1, vstar2)
+            ax.imshow(
+                v1.T, interpolation='none', extent=axStyle[0], origin="lower",
+                cmap=cmap, vmin=-vstar, vmax=vstar
+            )
+            ax.imshow(
+              v2.T, interpolation='none', extent=axStyle[0], origin="lower",
               cmap=cmap, vmin=-vstar, vmax=vstar
-          )
-          ax.imshow(
-            v2.T, interpolation='none', extent=axStyle[0], origin="lower",
-            cmap=cmap, vmin=-vstar, vmax=vstar
-          )
+            )
 
-          X, Y = np.meshgrid(xs, ys)
-          ax.contour(
-              X, Y, v1.T, levels=[-0.1], colors=('k',), linestyles=('--',),
+            X, Y = np.meshgrid(xs, ys)
+            ax.contour(
+                X, Y, v1.T, levels=[-0.1], colors=('k',), linestyles=('--',),
+                linewidths=(1,)
+            )
+            ax.contour(
+              X, Y, v2.T, levels=[-0.1], colors=('c',), linestyles=('--',),
               linewidths=(1,)
-          )
-          ax.contour(
-            X, Y, v2.T, levels=[-0.1], colors=('c',), linestyles=('--',),
-            linewidths=(1,)
-          )
-          voptimal = np.maximum(v1, v2)
-          ax.contour(
-            X, Y, voptimal.T, levels=[-0.1], colors=('m',), linestyles=('--',),
-            linewidths=(1,)
-          )
+            )
+            voptimal = np.maximum(v1, v2)
+            ax.contour(
+              X, Y, voptimal.T, levels=[-0.1], colors=('m',), linestyles=('--',),
+              linewidths=(1,)
+            )
+          else:
+            vmin = np.min(v)
+            vmax = np.max(v)
+            vstar = max(abs(vmin), vmax)
+            ax.imshow(
+              v.T, interpolation='none', extent=axStyle[0], origin="lower",
+              cmap=cmap, vmin=-vstar, vmax=vstar
+            )
+            X, Y = np.meshgrid(xs, ys)
+            ax.contour(
+              X, Y, v.T, levels=[-0.1], colors=('k',), linestyles=('--',),
+              linewidths=(1,)
+            )
 
         #  == Plot Environment ==
         self.imshow_lander(extent=axStyle[0], alpha=0.4, ax=ax)

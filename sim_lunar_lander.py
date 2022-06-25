@@ -54,6 +54,9 @@ parser.add_argument(
     "-cfg", "--config_path", help="path to CONFIG.pkl file",
     default='toThreshold', type=str
 )
+parser.add_argument(
+    "-dcp", "--decompose", help="run for decomposed lunar lander", action="store_true"
+)
 
 # training scheme
 parser.add_argument(
@@ -148,6 +151,9 @@ if args.showTime:
 outFolder = os.path.join(args.outFolder, 'LunarLander-DDQN', fn)
 print(outFolder)
 
+if args.decompose:
+    args.maxUpdates = 1500000
+
 CONFIG = dqnConfig(
     ENV_NAME=env_name,
     DEVICE=device,
@@ -179,6 +185,7 @@ CONFIG = dqnConfig(
     RENDER=False,
     MAX_MODEL=10,  # How many models to store while training.
     DOUBLE=args.double,
+    DECOMPOSE=args.decompose,
     ARCHITECTURE=args.architecture,
     ACTIVATION=args.actType,
     REWARD=-1,
@@ -238,6 +245,7 @@ def run_experiment(args, CONFIG, env):
       vmin=-1,
       vmax=1,
       checkPeriod=args.checkPeriod,  # How often to compute Safe vs. Unsafe.
+      decompose=CONFIG.DECOMPOSE,    # Decompose the state space.
       storeFigure=args.storeFigure,  # Store the figure in an eps file.
       storeModel=True,
       storeBest=False,
