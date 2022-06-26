@@ -104,6 +104,9 @@ parser.add_argument(
     "-g", "--gamma", help="contraction coeff.", default=0.9, type=float
 )
 parser.add_argument(
+    "-gend", "--gammaEnd", help="gamma end", default=0.999999, type=float
+)
+parser.add_argument(
     "-e", "--eps", help="exploration coeff.", default=0.5, type=float
 )
 parser.add_argument(
@@ -153,6 +156,7 @@ print(outFolder)
 
 if args.decompose:
     args.maxUpdates = 1500000
+    args.gammaEnd = 0.999
 
 CONFIG = dqnConfig(
     ENV_NAME=env_name,
@@ -173,7 +177,7 @@ CONFIG = dqnConfig(
     LR_C_DECAY=0.8,  # Learning rate decay rate.
     # =================== LEARNING RATE .
     GAMMA=args.gamma,  # Inital gamma.
-    GAMMA_END=0.999,  # Final gamma.
+    GAMMA_END=args.gammaEnd,  # Final gamma.
     GAMMA_PERIOD=args.update_period_gamma,  # How often to update gamma.
     GAMMA_DECAY=0.1,  # Rate of decay of gamma.
     # ===================
