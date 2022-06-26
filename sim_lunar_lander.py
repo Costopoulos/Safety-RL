@@ -25,6 +25,28 @@ from RARL.DDQNSingle import DDQNSingle
 from RARL.config import dqnConfig
 from gym_reachability import gym_reachability  # Custom Gym env.
 
+def finalizeArgs(args):
+    """
+    Finalize the arg parser by setting the maximum number of gradient updates
+    and final gamma value, according to whether a decomposition is wanted or not
+
+    Args:
+        args (argparse.Namespace): parsed arguments.
+    """
+    if "maxUpdates" not in args:
+        if args.decompose:
+            args.maxUpdates = 1500000
+        else:
+            args.maxUpdates = 3500000
+
+    if "gammaEnd" not in args:
+        if args.decompose:
+            args.gammaEnd = 0.999
+        else:
+            args.gammaEnd = 0.999999
+    return args
+
+
 timestr = time.strftime("%Y-%m-%d-%H_%M_%S")
 simplefilter(action='ignore', category=FutureWarning)
 
@@ -69,7 +91,7 @@ parser.add_argument(
     "-ab", "--addBias", help="add bias term for RA", action="store_true"
 )
 parser.add_argument(
-    "-mu", "--maxUpdates", help="maximal #gradient updates", default=3500000,
+    "-mu", "--maxUpdates", help="maximal #gradient updates", default=argparse.SUPPRESS,
     type=int
 )
 parser.add_argument(
@@ -104,7 +126,7 @@ parser.add_argument(
     "-g", "--gamma", help="contraction coeff.", default=0.9, type=float
 )
 parser.add_argument(
-    "-gend", "--gammaEnd", help="gamma end", default=0.999999, type=float
+    "-gend", "--gammaEnd", help="gamma end", default=argparse.SUPPRESS, type=float
 )
 parser.add_argument(
     "-e", "--eps", help="exploration coeff.", default=0.5, type=float
@@ -154,9 +176,8 @@ if args.showTime:
 outFolder = os.path.join(args.outFolder, 'LunarLander-DDQN', fn)
 print(outFolder)
 
-if args.decompose:
-    args.maxUpdates = 1500000
-    args.gammaEnd = 0.999
+# final args setting
+args = finalizeArgs(args)
 
 CONFIG = dqnConfig(
     ENV_NAME=env_name,
