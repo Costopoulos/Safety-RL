@@ -69,7 +69,7 @@ parser.add_argument(
     "-ab", "--addBias", help="add bias term for RA", action="store_true"
 )
 parser.add_argument(
-    "-mu", "--maxUpdates", help="maximal #gradient updates", default=5e6,
+    "-mu", "--maxUpdates", help="maximal #gradient updates", default=3500000,
     type=int
 )
 parser.add_argument(
