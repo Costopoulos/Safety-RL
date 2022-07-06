@@ -276,9 +276,7 @@ class DDQNSingle(DDQN):
         figurePath = os.path.join(figureFolder, "initQ.png")
         plt.savefig(figurePath)
       if plotFigure:
-        plt.pause(0.001)
-      plt.clf()
-      plt.close('all')
+        plt.pause(10)
     self.target_network.load_state_dict(
         self.Q_network.state_dict()
     )  # hard replace
@@ -289,9 +287,9 @@ class DDQNSingle(DDQN):
   def learn(
       self, env, MAX_UPDATES=2000000, MAX_EP_STEPS=100, warmupBuffer=True,
       warmupQ=False, warmupIter=10000, addBias=False, doneTerminate=True,
-      runningCostThr=None, curUpdates=None, checkPeriod=50000, plotFigure=True,
-      storeFigure=False, showBool=False, vmin=-1, vmax=1, numRndTraj=200,
-      storeModel=True, storeBest=False, outFolder="RA", verbose=True
+      runningCostThr=None, curUpdates=None, checkPeriod=50000, decompose=False,
+      plotFigure=True, storeFigure=False, showBool=False, vmin=-1, vmax=1,
+      numRndTraj=200, storeModel=True, storeBest=False, outFolder="RA", verbose=True
   ):
     """Learns the Q function given the training hyper-parameters.
 
@@ -317,6 +315,7 @@ class DDQNSingle(DDQN):
             (usually used when restoring trained models). Defaults to None.
         checkPeriod (int, optional): the period we check the performance.
             Defaults to 50000.
+        decompose (bool, optional): decompose the state if True.
         plotFigure (bool, optional): plot figures if True. Defaults to True.
         storeFigure (bool, optional): store figures if True. Defaults to False.
         showBool (bool, optional): plot the sign of value function if True.
@@ -432,7 +431,7 @@ class DDQNSingle(DDQN):
             else:
               env.visualize(
                   self.Q_network, vmin=vmin, vmax=vmax, cmap="seismic",
-                  addBias=addBias
+                  addBias=addBias, decompose=decompose
               )
             if storeFigure:
               figurePath = os.path.join(
@@ -440,9 +439,7 @@ class DDQNSingle(DDQN):
               )
               plt.savefig(figurePath)
             if plotFigure:
-              plt.pause(0.001)
-            plt.clf()
-            plt.close('all')
+              plt.pause(10)
 
         # Perform one step of the optimization (on the target network)
         lossC = self.update(addBias=addBias)

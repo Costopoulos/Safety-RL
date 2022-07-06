@@ -18,8 +18,8 @@ class config(object):
       EPS_DECAY=0.5, EPS_RESET_PERIOD=100, LR_C=1e-3, LR_C_END=1e-4,
       LR_C_PERIOD=1, LR_C_DECAY=0.5, GAMMA=0.9, GAMMA_END=0.99999999,
       GAMMA_PERIOD=200, GAMMA_DECAY=0.5, MEMORY_CAPACITY=10000, BATCH_SIZE=32,
-      RENDER=False, MAX_MODEL=5, ARCHITECTURE=None, ACTIVATION="Tanh",
-      SKIP=False, REWARD=-1, PENALTY=1
+      RENDER=False, MAX_MODEL=5, DECOMPOSE=False, ARCHITECTURE=None,
+      ACTIVATION="Tanh", SKIP=False, REWARD=-1, PENALTY=1
   ):
     """Initializes an object of the config class with the specified attributes.
 
@@ -58,6 +58,7 @@ class config(object):
             Defaults to False.
         MAX_MODEL (int, optional): maximal number of models you want to
             store during the training process. Defaults to 5.
+        DECOMPOSE (bool, optional): decompose the state. Defaults to False.
         ARCHITECTURE (list, optional): the architecture of the hidden
             layers of the neural network. Defaults to [512, 512, 512].
         ACTIVATION (str, optional): the activation function used in the neural
@@ -92,6 +93,7 @@ class config(object):
     self.SEED = SEED
 
     self.MAX_MODEL = MAX_MODEL
+    self.DECOMPOSE = DECOMPOSE
     self.DEVICE = DEVICE
 
     self.ARCHITECTURE = ARCHITECTURE
@@ -113,8 +115,8 @@ class dqnConfig(config):
       LR_C_PERIOD=1, LR_C_DECAY=0.5, GAMMA=0.9, GAMMA_END=0.99999999,
       GAMMA_PERIOD=200, GAMMA_DECAY=0.5, TAU=0.01, HARD_UPDATE=1,
       SOFT_UPDATE=True, MEMORY_CAPACITY=10000, BATCH_SIZE=32, RENDER=False,
-      MAX_MODEL=10, DOUBLE=True, ARCHITECTURE=None, ACTIVATION="Tanh",
-      SKIP=False, REWARD=-1, PENALTY=1
+      MAX_MODEL=10, DOUBLE=True, DECOMPOSE=False, ARCHITECTURE=None,
+      ACTIVATION="Tanh", SKIP=False, REWARD=-1, PENALTY=1
   ):
     """
     Initializes a configuration object for (double) deep Q-network with the
@@ -123,6 +125,7 @@ class dqnConfig(config):
 
     Args:
         DOUBLE (bool, optional): use target network or not. Defaults to True.
+        DECOMPOSE (bool, optional): decompose the state or not. Defaults to False.
         TAU (float, optional): soft update parameter of target network.
             Defaults to 0.01.
         HARD_UPDATE (int, optional): update period of target network if
@@ -155,6 +158,7 @@ class dqnConfig(config):
         BATCH_SIZE=BATCH_SIZE,
         RENDER=RENDER,
         MAX_MODEL=MAX_MODEL,
+        DECOMPOSE=DECOMPOSE,
         ARCHITECTURE=ARCHITECTURE,
         ACTIVATION=ACTIVATION,
         SKIP=SKIP,
