@@ -226,7 +226,8 @@ CONFIG = dqnConfig(
     EPS_RESET_PERIOD=EPS_RESET_PERIOD, LR_C=args.learningRate,
     LR_C_PERIOD=updatePeriod, LR_C_DECAY=0.8, MAX_MODEL=50
 )
-# print(vars(CONFIG))
+for var in vars(CONFIG):
+    print(var, getattr(CONFIG, var))
 
 # == AGENT ==
 numActionList = env.numActionList
