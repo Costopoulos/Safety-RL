@@ -203,7 +203,7 @@ if args.plotFigure or args.storeFigure:
     fig.savefig(figurePath)
   if args.plotFigure:
     plt.show()
-    plt.pause(0.001)
+    plt.pause(10)
   plt.close()
 
 # == Agent CONFIG ==
@@ -266,7 +266,7 @@ if args.warmup:
       fig.savefig(figurePath)
     if args.plotFigure:
       plt.show()
-      plt.pause(0.001)
+      plt.pause(10)
     plt.close()
 
 print("\n== Training Information ==")
@@ -313,7 +313,7 @@ if args.plotFigure or args.storeFigure:
     fig.savefig(figurePath)
   if args.plotFigure:
     plt.show()
-    plt.pause(0.001)
+    plt.pause(10)
   plt.close()
   # endregion
 
@@ -400,7 +400,7 @@ if args.plotFigure or args.storeFigure:
     fig.savefig(figurePath)
   if args.plotFigure:
     plt.show()
-    plt.pause(0.001)
+    plt.pause(10)
   # endregion
 
   trainDict['resultMtx'] = resultMtx
