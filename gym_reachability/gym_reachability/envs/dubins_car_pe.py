@@ -492,6 +492,122 @@ class DubinsCarPEEnv(gym.Env):
     ])
     return [axes, aspect_ratio]
 
+  def get_value_decomposed_x(
+      self, q_func, theta, xPursuer, thetaPursuer, yPursuer=0, nx=101, ny=101,
+      addBias=False, verbose=False
+  ):
+    """
+    Gets the state values given the Q-network. We fix evader's heading angle to
+    theta and pursuer's state to [xPursuer, thetaPursuer].
+
+    Args:
+        q_func (object): agent's Q-network.
+        theta (float): the heading angle of the evader.
+        xPursuer (float): the x-position of the pursuer.
+        yPursuer (float): the y-position of the pursuer. Defaults to 0.
+        thetaPursuer (float): the heading angle of the pursuer.
+        nx (int, optional): # points in x-axis. Defaults to 101.
+        ny (int, optional): # points in y-axis. Defaults to 101.
+        addBias (bool, optional): adding bias to the values if True.
+            Defaults to False.
+        verbose (bool, optional): print if True. Defaults to False.
+
+    Returns:
+        np.ndarray: values
+    """
+    if verbose:
+      print(
+          "Getting values with evader's theta and pursuer's"
+          + "(x, theta) equal to {:.1f} and ".format(theta) +
+          "({:.1f}, {:.1f})".format(xPursuer, thetaPursuer)
+      )
+    v = np.zeros((nx, ny))
+    it = np.nditer(v, flags=['multi_index'])
+    xs = np.linspace(self.bounds[0, 0], self.bounds[0, 1], nx)
+    while not it.finished:
+      idx = it.multi_index
+      x = xs[idx[0]]
+
+      state = np.array([x, 0, theta, xPursuer, 0, thetaPursuer])
+      l_x = self.target_margin(state)
+      g_x = self.safety_margin(state)
+
+      # Q(s, a^*)
+      state = torch.FloatTensor(state).to(self.device)
+      with torch.no_grad():
+        state_action_values = q_func(state)
+      Q_mtx = state_action_values.reshape(
+          self.numActionList[0], self.numActionList[1]
+      )
+      pursuerValues, _ = Q_mtx.max(dim=-1)
+      minmaxValue, _ = pursuerValues.min(dim=-1)
+      minmaxValue = minmaxValue.cpu().numpy()
+
+      if addBias:
+        v[idx] = minmaxValue + max(l_x, g_x)
+      else:
+        v[idx] = minmaxValue
+      it.iternext()
+    return v, xs
+
+  def get_value_decomposed_y(
+      self, q_func, theta, yPursuer, thetaPursuer, xPursuer=0, nx=101, ny=101,
+      addBias=False, verbose=False
+  ):
+    """
+    Gets the state values given the Q-network. We fix evader's heading angle to
+    theta and pursuer's state to [yPursuer, thetaPursuer].
+
+    Args:
+        q_func (object): agent's Q-network.
+        theta (float): the heading angle of the evader.
+        xPursuer (float): the x-position of the pursuer. Defaults to 0.
+        yPursuer (float): the y-position of the pursuer.
+        thetaPursuer (float): the heading angle of the pursuer.
+        nx (int, optional): # points in x-axis. Defaults to 101.
+        ny (int, optional): # points in y-axis. Defaults to 101.
+        addBias (bool, optional): adding bias to the values if True.
+            Defaults to False.
+        verbose (bool, optional): print if True. Defaults to False.
+
+    Returns:
+        np.ndarray: values
+    """
+    if verbose:
+      print(
+          "Getting values with evader's theta and pursuer's"
+          + "(y, theta) equal to {:.1f} and ".format(theta) +
+          "({:.1f}, {:.1f})".format(yPursuer, thetaPursuer)
+      )
+    v = np.zeros((nx, ny))
+    it = np.nditer(v, flags=['multi_index'])
+    ys = np.linspace(self.bounds[1, 0], self.bounds[1, 1], ny)
+    while not it.finished:
+      idx = it.multi_index
+      y = ys[idx[1]]
+
+      state = np.array([0, y, theta, 0, yPursuer, thetaPursuer])
+      l_x = self.target_margin(state)
+      g_x = self.safety_margin(state)
+
+      # Q(s, a^*)
+      state = torch.FloatTensor(state).to(self.device)
+      with torch.no_grad():
+        state_action_values = q_func(state)
+      Q_mtx = state_action_values.reshape(
+          self.numActionList[0], self.numActionList[1]
+      )
+      pursuerValues, _ = Q_mtx.max(dim=-1)
+      minmaxValue, _ = pursuerValues.min(dim=-1)
+      minmaxValue = minmaxValue.cpu().numpy()
+
+      if addBias:
+        v[idx] = minmaxValue + max(l_x, g_x)
+      else:
+        v[idx] = minmaxValue
+      it.iternext()
+    return v, ys
+
   # Fix evader's theta and pursuer's (x, y, theta)
   def get_value(
       self, q_func, theta, xPursuer, yPursuer, thetaPursuer, nx=101, ny=101,
@@ -764,8 +880,8 @@ class DubinsCarPEEnv(gym.Env):
 
   def visualize(
       self, q_func, vmin=-1, vmax=1, nx=101, ny=101, cmap='seismic',
-      labels=None, boolPlot=False, addBias=False, theta=0., rndTraj=False,
-      num_rnd_traj=10, keepOutOf=False
+      labels=None, boolPlot=False, addBias=False, decompose=False, theta=0.,
+      rndTraj=False, num_rnd_traj=10, keepOutOf=False
   ):
     """
     Visulaizes the trained Q-network in terms of state values and trajectories
@@ -782,6 +898,8 @@ class DubinsCarPEEnv(gym.Env):
         boolPlot (bool, optional): plot the values in binary form.
             Defaults to False.
         addBias (bool, optional): adding bias to the values if True.
+            Defaults to False.
+        decompose (bool, optional): decompose the state if True.
             Defaults to False.
         theta (float, optional): if provided, set the theta to its value.
             Defaults to np.pi/2.
@@ -808,7 +926,7 @@ class DubinsCarPEEnv(gym.Env):
 
       # == Plot V ==
       self.plot_v_values(
-          q_func, ax=ax, fig=fig, theta=state[0][2], xPursuer=state[0][3],
+          q_func, ax=ax, fig=fig, decompose=decompose, theta=state[0][2], xPursuer=state[0][3],
           yPursuer=state[0][4], thetaPursuer=state[0][5], vmin=vmin, vmax=vmax,
           nx=nx, ny=ny, cmap=cmap, boolPlot=boolPlot, cbarPlot=cbarPlot,
           addBias=addBias
@@ -832,7 +950,7 @@ class DubinsCarPEEnv(gym.Env):
   #  2D-plot based on evader's x and y
   def plot_v_values(
       self, q_func, theta=0, xPursuer=.5, yPursuer=.5, thetaPursuer=0, ax=None,
-      fig=None, vmin=-1, vmax=1, nx=101, ny=101, cmap='seismic',
+      fig=None, decompose=False, vmin=-1, vmax=1, nx=101, ny=101, cmap='seismic',
       boolPlot=False, cbarPlot=True, addBias=False
   ):
     """Plots state values.
@@ -849,6 +967,8 @@ class DubinsCarPEEnv(gym.Env):
             angle to its value. Defaults to 0.
         ax (matplotlib.axes.Axes, optional): Defaults to None.
         fig (matplotlib.figure, optional): Defaults to None.
+        decompose (bool, optional): decompose the state if True.
+            Defaults to False.
         vmin (int, optional): vmin in colormap. Defaults to -1.
         vmax (int, optional): vmax in colormap. Defaults to 1.
         nx (int, optional): # points in x-axis. Defaults to 201.
@@ -866,10 +986,22 @@ class DubinsCarPEEnv(gym.Env):
     # == Plot V ==
     if theta is None:
       theta = 2.0 * np.random.uniform() * np.pi
-    v = self.get_value(
+    if not decompose:
+      v = self.get_value(
         q_func, theta, xPursuer, yPursuer, thetaPursuer, nx, ny,
         addBias=addBias
-    )
+      )
+    else:
+      v1, xs = self.get_value_decomposed_x(
+            q_func, theta, xPursuer, 0, thetaPursuer, nx, ny,
+            addBias=addBias
+      )
+      v2, ys = self.get_value_decomposed_y(
+            q_func, theta, 0, yPursuer, thetaPursuer, nx, ny,
+            addBias=addBias
+      )
+      v = np.maximum(v1, v2)
+
 
     if boolPlot:
       im = ax.imshow(
@@ -877,10 +1009,37 @@ class DubinsCarPEEnv(gym.Env):
           cmap=cmap
       )
     else:
-      im = ax.imshow(
+      if not decompose:
+        im = ax.imshow(
           v.T, interpolation='none', extent=axStyle[0], origin="lower",
           cmap=cmap, vmin=vmin, vmax=vmax
-      )
+        )
+      else:
+        im = ax.imshow(
+          v1.T, interpolation='none', extent=axStyle[0], origin="lower",
+          cmap=cmap, vmin=vmin, vmax=vmax
+        )
+        im = ax.imshow(
+          v2.T, interpolation='none', extent=axStyle[0], origin="lower",
+          cmap=cmap, vmin=vmin, vmax=vmax
+        )
+        im = ax.imshow(
+          v.T, interpolation='none', extent=axStyle[0], origin="lower",
+          cmap=cmap, vmin=vmin, vmax=vmax
+        )
+        X, Y = np.meshgrid(xs, ys)
+        ax.contour(
+          X, Y, v1.T, levels=[-0.1], colors=('k',), linestyles=('--',),
+          linewidths=(1,)
+        )
+        ax.contour(
+          X, Y, v2.T, levels=[-0.1], colors=('c',), linestyles=('--',),
+          linewidths=(1,)
+        )
+        ax.contour(
+          X, Y, v.T, levels=[-0.1], colors=('g',), linestyles=('--',),
+          linewidths=(1,)
+        )
       if cbarPlot:
         cbar = fig.colorbar(
             im, ax=ax, pad=0.01, fraction=0.05, shrink=.95,
@@ -950,12 +1109,12 @@ class DubinsCarPEEnv(gym.Env):
       ax.plot(trajEvaderX, trajEvaderY, color=c[0], linewidth=lw, zorder=2)
       ax.scatter(trajPursuerX[0], trajPursuerY[0], s=48, c=c[1], zorder=3)
       ax.plot(trajPursuerX, trajPursuerY, color=c[1], linewidth=lw, zorder=2)
-      if result == 1:
+      if result == 1:  # evader wins
         ax.scatter(
             trajEvaderX[-1], trajEvaderY[-1], s=60, c=c[0], marker='*',
             zorder=3
         )
-      if result == -1:
+      if result == -1:  # evader gets caught
         ax.scatter(
             trajEvaderX[-1], trajEvaderY[-1], s=60, c=c[0], marker='x',
             zorder=3
@@ -985,16 +1144,16 @@ class DubinsCarPEEnv(gym.Env):
             Defaults to 'y'.
         zorder (int, optional): graph layers order. Defaults to 1.
     """
-    plot_circle(
+    plot_circle(  # magenta for the boundary
         self.evader.constraint_center, self.evader.constraint_radius, ax,
         c=c_c, lw=lw, zorder=zorder
     )
-    plot_circle(
+    plot_circle(  # yellow for the target
         self.evader.target_center, self.evader.target_radius, ax, c=c_t, lw=lw,
         zorder=zorder
     )
     if showCapture:
-      plot_circle(
+      plot_circle(  # magenta for pursuer's capture range
           np.array([xPursuer, yPursuer]), self.capture_range, ax, c=c_c, lw=lw,
           ls='--', zorder=zorder
       )

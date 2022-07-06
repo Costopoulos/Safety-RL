@@ -329,9 +329,9 @@ class DDQNPursuitEvasion(DDQN):
   def learn(
       self, env, MAX_UPDATES=2000000, MAX_EP_STEPS=100, warmupBuffer=True,
       warmupQ=False, warmupIter=10000, doneTerminate=True, runningCostThr=None,
-      curUpdates=None, checkPeriod=50000, plotFigure=True, storeFigure=False,
-      showBool=False, vmin=-1, vmax=1, numRndTraj=200, storeModel=True,
-      storeBest=False, outFolder="RA", verbose=True
+      curUpdates=None, checkPeriod=50000, decompose=False, plotFigure=True,
+      storeFigure=False, showBool=False, vmin=-1, vmax=1, numRndTraj=200,
+      storeModel=True, storeBest=False, outFolder="RA", verbose=True
   ):
     """Learns the Q function given the training hyper-parameters.
 
@@ -355,6 +355,8 @@ class DDQNPursuitEvasion(DDQN):
             (usually used when restoring trained models). Defaults to None.
         checkPeriod (int, optional): the period we check the performance.
             Defaults to 50000.
+        decompose (bool, optional): decompose the state if True.
+            Defaults to False.
         plotFigure (bool, optional): plot figures if True. Defaults to True.
         storeFigure (bool, optional): store figures if True. Defaults to False.
         showBool (bool, optional): plot the sign of value function if True.
@@ -466,7 +468,8 @@ class DDQNPursuitEvasion(DDQN):
               env.visualize(self.Q_network, vmin=0, boolPlot=True)
             else:
               env.visualize(
-                  self.Q_network, vmin=vmin, vmax=vmax, cmap="seismic"
+                  self.Q_network, vmin=vmin, vmax=vmax,
+                  cmap="seismic", decompose=decompose
               )
             if storeFigure:
               figurePath = os.path.join(
