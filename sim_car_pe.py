@@ -40,7 +40,7 @@ def finalizeArgs(args):
     """
     if "maxUpdates" not in args:
         if args.decompose:
-            args.maxUpdates = 1500000
+            args.maxUpdates = 1400000
         else:
             args.maxUpdates = 3000000
 
