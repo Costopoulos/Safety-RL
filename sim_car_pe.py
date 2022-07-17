@@ -31,6 +31,26 @@ matplotlib.use('Agg')
 simplefilter(action='ignore', category=FutureWarning)
 timestr = time.strftime("%Y-%m-%d-%H_%M")
 
+def finalizeArgs(args):
+    """
+    Finalize the arg parser by setting the maximum number of gradient updates
+    and final gamma value, according to whether a decomposition is wanted or not
+    Args:
+        args (argparse.Namespace): parsed arguments.
+    """
+    if "maxUpdates" not in args:
+        if args.decompose:
+            args.maxUpdates = 1400000
+        else:
+            args.maxUpdates = 3000000
+
+    if "gammaEnd" not in args:
+        if args.decompose:
+            args.gammaEnd = 0.999
+        else:
+            args.gammaEnd = 0.999999 # 0.9999
+    return args
+
 # == ARGS ==
 parser = argparse.ArgumentParser()
 
@@ -60,6 +80,9 @@ parser.add_argument(
     "-turn", "--turnRadius", help="turning radius", default=.25, type=float
 )
 parser.add_argument("-s", "--speed", help="speed", default=.75, type=float)
+parser.add_argument(
+    "-dcp", "--decompose", help="run for decomposed system", action="store_true"
+)
 
 # training scheme
 parser.add_argument(
@@ -69,7 +92,7 @@ parser.add_argument(
     "-wi", "--warmupIter", help="warmup iteration", default=30000, type=int
 )
 parser.add_argument(
-    "-mu", "--maxUpdates", help="maximal #gradient updates", default=4000000,
+    "-mu", "--maxUpdates", help="maximal #gradient updates", default=argparse.SUPPRESS,
     type=int
 )
 parser.add_argument(
@@ -97,6 +120,9 @@ parser.add_argument(
     "-g", "--gamma", help="contraction coeff.", default=0.8, type=float
 )
 parser.add_argument(
+    "-gend", "--gammaEnd", help="gamma end", default=argparse.SUPPRESS, type=float
+)
+parser.add_argument(
     "-act", "--actType", help="activation type", default='Tanh', type=str
 )
 
@@ -112,7 +138,8 @@ parser.add_argument(
 )
 parser.add_argument("-n", "--name", help="extra name", default='', type=str)
 parser.add_argument(
-    "-of", "--outFolder", help="output file", default='experiments', type=str
+    "-of", "--outFolder", help="output file",
+    default='experiments/AttackDefence' + timestr, type=str
 )
 parser.add_argument(
     "-pf", "--plotFigure", help="plot figures", action="store_true"
@@ -124,15 +151,6 @@ parser.add_argument(
 args = parser.parse_args()
 print(args)
 
-# == CONFIGURATION ==
-env_name = "dubins_car_pe-v0"
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-maxUpdates = args.maxUpdates
-updateTimes = args.updateTimes
-updatePeriod = int(maxUpdates / updateTimes)
-updatePeriodHalf = int(updatePeriod / 2)
-maxSteps = 200
-
 fn = args.name + '-' + args.doneType
 if args.showTime:
   fn = fn + '-' + timestr
@@ -141,6 +159,17 @@ outFolder = os.path.join(args.outFolder, 'car-pe-DDQN', fn)
 print(outFolder)
 figureFolder = os.path.join(outFolder, 'figure')
 os.makedirs(figureFolder, exist_ok=True)
+
+args = finalizeArgs(args)
+
+# == CONFIGURATION ==
+env_name = "dubins_car_pe-v0"
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+maxUpdates = args.maxUpdates
+updateTimes = args.updateTimes
+updatePeriod = int(maxUpdates / updateTimes)
+updatePeriodHalf = int(updatePeriod / 2)
+maxSteps = 200
 
 # == Environment ==
 print("\n== Environment Information ==")
@@ -202,17 +231,18 @@ if args.plotFigure or args.storeFigure:
     fig.savefig(figurePath)
   if args.plotFigure:
     plt.show()
-    plt.pause(0.001)
+    plt.pause(10)
   plt.close()
 
 # == Agent CONFIG ==
 print("\n== Agent Information ==")
 if args.annealing:
-  GAMMA_END = 0.9999
+  # GAMMA_END = 0.9999
   EPS_PERIOD = int(updatePeriod / 10)
   EPS_RESET_PERIOD = updatePeriod
 else:
-  GAMMA_END = args.gamma
+  # GAMMA_END = args.gamma
+  args.gammaEnd = args.gamma
   EPS_PERIOD = updatePeriod
   EPS_RESET_PERIOD = maxUpdates
 
@@ -220,12 +250,14 @@ CONFIG = dqnConfig(
     DEVICE=device, ENV_NAME=env_name, SEED=args.randomSeed,
     MAX_UPDATES=maxUpdates, MAX_EP_STEPS=maxSteps, BATCH_SIZE=64,
     MEMORY_CAPACITY=args.memoryCapacity, ARCHITECTURE=args.architecture,
-    ACTIVATION=args.actType, GAMMA=args.gamma, GAMMA_PERIOD=updatePeriod,
-    GAMMA_END=GAMMA_END, EPS_PERIOD=EPS_PERIOD, EPS_DECAY=0.7,
+    ACTIVATION=args.actType, GAMMA=args.gamma, GAMMA_END=args.gammaEnd,
+    GAMMA_PERIOD=updatePeriod, EPS_PERIOD=EPS_PERIOD, EPS_DECAY=0.7,
     EPS_RESET_PERIOD=EPS_RESET_PERIOD, LR_C=args.learningRate,
-    LR_C_PERIOD=updatePeriod, LR_C_DECAY=0.8, MAX_MODEL=50
+    LR_C_PERIOD=updatePeriod, LR_C_DECAY=0.8,
+    MAX_MODEL=50, DECOMPOSE=args.decompose
 )
-# print(vars(CONFIG))
+for var in vars(CONFIG):
+    print(var, getattr(CONFIG, var))
 
 # == AGENT ==
 numActionList = env.numActionList
@@ -265,7 +297,7 @@ if args.warmup:
       fig.savefig(figurePath)
     if args.plotFigure:
       plt.show()
-      plt.pause(0.001)
+      plt.pause(10)
     plt.close()
 
 print("\n== Training Information ==")
@@ -274,7 +306,7 @@ vmax = 1
 trainRecords, trainProgress = agent.learn(
     env, MAX_UPDATES=maxUpdates, MAX_EP_STEPS=maxSteps, warmupQ=False,
     doneTerminate=True, vmin=vmin, vmax=vmax, showBool=False,
-    checkPeriod=args.checkPeriod, outFolder=outFolder,
+    checkPeriod=args.checkPeriod, decompose=args.decompose, outFolder=outFolder,
     plotFigure=args.plotFigure, storeFigure=args.storeFigure
 )
 
@@ -312,7 +344,7 @@ if args.plotFigure or args.storeFigure:
     fig.savefig(figurePath)
   if args.plotFigure:
     plt.show()
-    plt.pause(0.001)
+    plt.pause(10)
   plt.close()
   # endregion
 
@@ -399,7 +431,7 @@ if args.plotFigure or args.storeFigure:
     fig.savefig(figurePath)
   if args.plotFigure:
     plt.show()
-    plt.pause(0.001)
+    plt.pause(10)
   # endregion
 
   trainDict['resultMtx'] = resultMtx
